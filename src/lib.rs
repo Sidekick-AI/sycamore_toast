@@ -154,14 +154,14 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
         toasts.toasts.modify().retain(|(t, _)| *t != toast1);
     });
 
-    let (bg_color, text_color, image_name) = match toast.toast_type {
-        ToastType::Danger => ("#9c4d44", "text-red-600", "x_toast.png"),
-        ToastType::Warning => ("#9c9844", "text-yellow-400", "warning_toast.png"),
-        ToastType::Primary => ("#445d9c", "text-blue-600", "info_toast.png"),
-        ToastType::Success => ("#449c5a", "text-green-500", "check_toast.png"),
+    let (bg_color, image_name) = match toast.toast_type {
+        ToastType::Danger => ("#fc2828", "x_toast.png"),
+        ToastType::Warning => ("#fae739", "warning_toast.png"),
+        ToastType::Primary => ("#395cfa", "info_toast.png"),
+        ToastType::Success => ("#30f267", "check_toast.png"),
     };
     view! {cx,
-        div (ref=node_ref, style=(format!("background-image: linear-gradient(to right, {bg_color}, #111827, #111827, #111827, #111827);")), class="w-full max-w-lg p-5 m-2 rounded-lg flex flex-row items-center transition-all z-50") {
+        div (ref=node_ref, style=format!("border-color: {}", bg_color), class="w-full bg-white max-w-lg px-5 py-4 m-2 border-[3px] rounded-xl flex flex-row items-center transition-all z-50") {
             // Icon
             img (src=(format!("/static/images/icons/{image_name}")), width="30px", height="30px", class="object-scale-down")
             
@@ -169,14 +169,14 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
             (if toast.body.replace(' ', "").is_empty() {
                 let title = toast.title.clone();
                 view!{cx,
-                    p (class=(format!("ml-8 pt-1 font-montserrat font-lg font-bold {text_color}"))) {(title)}
+                    p (class=(format!("ml-8 pt-1 font-montserrat text-lg font-bold text-slate-900"))) {(title)}
                 }
             } else {
                 let (title, message) = (toast.title.clone(), toast.body.clone());
                 view!{cx, 
                     div (class="ml-8 flex flex-col") {
-                        p (class=(format!("font-montserrat font-lg font-bold {text_color}"))) {(title)}
-                        p (class="text-gray-400") {(message)}
+                        p (class=(format!("pt-1 font-montserrat text-lg font-bold text-slate-900"))) {(title)}
+                        p (class="text-slate-700") {(message)}
                     }      
                 }
             })
@@ -184,7 +184,7 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
             div (class="flex-grow")
 
             // Close button
-            button (class="bg-[#111827] hover:bg-slate-600 text-2xl text-slate-500 hover:text-slate-900 w-8 h-8 mr-5 transition-all rounded-lg", on:click=remove) {
+            button (class="font-comfortaa font-bold hover:bg-slate-200 text-2xl text-slate-500 hover:text-slate-900 w-10 h-10 mr-5 transition-all rounded-lg p-2", on:click=remove) {
                 "X"
             }
         }
