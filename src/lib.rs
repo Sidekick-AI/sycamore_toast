@@ -158,7 +158,7 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
         ToastType::Danger => ("#fc2828", "x_toast.png"),
         ToastType::Warning => ("#fae739", "warning_toast.png"),
         ToastType::Primary => ("#395cfa", "info_toast.png"),
-        ToastType::Success => ("#30f267", "check_toast.png"),
+        ToastType::Success => ("#04c55e", "check_toast.png"),
     };
     view! {cx,
         div (ref=node_ref, style=format!("border-color: {}", bg_color), class="w-full bg-white max-w-lg px-5 py-4 m-2 border-[3px] rounded-xl flex flex-row items-center transition-all z-50") {
