@@ -1,9 +1,11 @@
 #![allow(clippy::type_complexity)]
-use std::{marker::PhantomData, fmt::Debug};
+use std::{fmt::Debug, marker::PhantomData};
 
-use sycamore::{prelude::*, futures::{spawn_local_scoped}};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use sycamore::{futures::spawn_local_scoped, prelude::*};
+use wasm_cookies::CookieOptions;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum ToastType {
     Primary,
     Success,
@@ -11,7 +13,7 @@ pub enum ToastType {
     Danger,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Toast {
     title: String,
     body: String,
@@ -21,7 +23,12 @@ pub struct Toast {
 
 impl Default for Toast {
     fn default() -> Self {
-        Self { title: Default::default(), body: Default::default(), toast_type: ToastType::Primary, id: uuid::Uuid::new_v4() }
+        Self {
+            title: Default::default(),
+            body: Default::default(),
+            toast_type: ToastType::Primary,
+            id: uuid::Uuid::new_v4(),
+        }
     }
 }
 
@@ -69,20 +76,39 @@ impl Toast {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Toasts<T: Clone + Debug + Default> {
+pub struct Toasts<T: Clone + Debug + Default + Serialize + DeserializeOwned> {
     toasts: RcSignal<Vec<(T, u8)>>,
 }
 
-impl <T: Clone + Debug + Default> Toasts<T> {
+pub enum CookieError {
+    CookieNotPresent,
+    InvalidCookie,
+}
+
+impl<T: Clone + Debug + Default + Serialize + DeserializeOwned> Toasts<T> {
+    pub fn from_cookies() -> Result<Self, CookieError> {
+        if let Some(Ok(c)) = wasm_cookies::get("sycamore_toasts") {
+            Ok(Self {
+                toasts: create_rc_signal(
+                    serde_json::from_str(&c).map_err(|_| CookieError::InvalidCookie)?,
+                ),
+            })
+        } else {
+            Err(CookieError::CookieNotPresent)
+        }
+    }
+
     pub fn clear_toasts(&self) {
         self.toasts.modify().retain(|(_, r)| *r >= 1);
         for (_, rank) in self.toasts.modify().iter_mut() {
             *rank -= 1;
         }
+        self.save_to_cookies();
     }
 
     pub fn add_toast(&self, toast: T) -> &Self {
         self.toasts.modify().push((toast, 0));
+        self.save_to_cookies();
         self
     }
 
@@ -90,14 +116,29 @@ impl <T: Clone + Debug + Default> Toasts<T> {
         if let Some((_, r)) = self.toasts.modify().last_mut() {
             *r = rank;
         }
+        self.save_to_cookies();
         self
+    }
+
+    fn save_to_cookies(&self) {
+        // Save to cookies
+        wasm_cookies::set(
+            "sycamore_toasts",
+            &serde_json::to_string(self.toasts.get().as_ref()).unwrap(),
+            &CookieOptions::default(),
+        );
     }
 }
 
 #[derive(Prop, Default)]
-pub struct ToastsViewProp<'a, G: GenericNode, F, T: Clone + Debug + Default>
-where F: Fn(BoundedScope<'_, 'a>, T) -> View<G> + 'a
- {
+pub struct ToastsViewProp<
+    'a,
+    G: GenericNode,
+    F,
+    T: Clone + Debug + Default + Serialize + DeserializeOwned,
+> where
+    F: Fn(BoundedScope<'_, 'a>, T) -> View<G> + 'a,
+{
     view: F,
     toasts: Toasts<T>,
     #[builder(default)]
@@ -105,17 +146,33 @@ where F: Fn(BoundedScope<'_, 'a>, T) -> View<G> + 'a
 }
 
 #[component]
-pub fn ToastsView<'a, G: Html, T: Clone + Debug + Default + PartialEq + 'static, F: Fn(BoundedScope<'_, 'a>, T) -> View<G> + 'a>(
-    cx: Scope<'a>, 
-    ToastsViewProp { view, toasts, _phantom }: ToastsViewProp<'a, G, F, T>
+pub fn ToastsView<
+    'a,
+    G: Html,
+    T: Clone + Debug + Default + PartialEq + Serialize + DeserializeOwned + 'static,
+    F: Fn(BoundedScope<'_, 'a>, T) -> View<G> + 'a,
+>(
+    cx: Scope<'a>,
+    ToastsViewProp {
+        view,
+        toasts,
+        _phantom,
+    }: ToastsViewProp<'a, G, F, T>,
 ) -> View<G> {
     if try_use_context::<Toasts<T>>(cx).is_none() {
         provide_context(cx, toasts.clone());
     }
     let new_toasts = create_memo(cx, move || {
-        toasts.toasts.get().iter().filter(|(_, r)| *r == 0).cloned().map(|(t, _)| t).collect()
+        toasts
+            .toasts
+            .get()
+            .iter()
+            .filter(|(_, r)| *r == 0)
+            .cloned()
+            .map(|(t, _)| t)
+            .collect()
     });
-    view!{cx,
+    view! {cx,
         div (class="-translate-y-[300px]") // To include the right class for fading out toasts
         div (class="fixed top-14 w-full flex flex-col items-center") {
             Indexed (
@@ -164,7 +221,7 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
         div (ref=node_ref, style=format!("border-color: {}", bg_color), class="w-full bg-white max-w-lg px-5 py-4 m-2 border-[3px] rounded-xl flex flex-row items-center transition-all z-50") {
             // Icon
             img (src=(format!("/static/images/icons/{image_name}")), width="30px", height="30px", class="object-scale-down")
-            
+
             // Title / text
             (if toast.body.replace(' ', "").is_empty() {
                 let title = toast.title.clone();
@@ -173,11 +230,11 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
                 }
             } else {
                 let (title, message) = (toast.title.clone(), toast.body.clone());
-                view!{cx, 
+                view!{cx,
                     div (class="ml-8 flex flex-col") {
                         p (class=(format!("pt-1 font-montserrat text-lg font-bold text-slate-900"))) {(title)}
                         p (class="text-slate-700") {(message)}
-                    }      
+                    }
                 }
             })
 
@@ -193,14 +250,14 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
 
 #[cfg(test)]
 mod tests {
-    use sycamore::prelude::*;
     use super::*;
+    use sycamore::prelude::*;
 
     #[test]
     fn test_toasts() {
         let _ = sycamore::render_to_string(|cx| {
             let toasts = Toasts::default();
-            view!{cx,
+            view! {cx,
                 ToastsView (
                     toasts=toasts,
                     view=DefaultToastView

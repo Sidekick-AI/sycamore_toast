@@ -7,6 +7,9 @@ edition = "2021"
 
 [dependencies]
 sycamore = {version="0.8.0", features = ["suspense", "ssr"]}
-uuid = {version="1.1.2", features=["v4", "fast-rng", "js"]}
+uuid = {version="1.1.2", features=["v4", "fast-rng", "js", "serde"]}
 web-sys = "0.3.56"
 gloo-timers = {version="0.2.1", features=["futures"]}
+wasm-cookies = "0.1.0"
+serde = {version="1.0.145", features=["derive"]}
+serde_json = "1.0.87"
