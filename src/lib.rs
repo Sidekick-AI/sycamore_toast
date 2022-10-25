@@ -99,6 +99,7 @@ impl<T: Clone + Debug + Default + Serialize + DeserializeOwned> Toasts<T> {
     }
 
     pub fn clear_toasts(&self) {
+        log::info!("Clear");
         self.toasts.modify().retain(|(_, r)| *r >= 1);
         for (_, rank) in self.toasts.modify().iter_mut() {
             *rank -= 1;
@@ -124,7 +125,7 @@ impl<T: Clone + Debug + Default + Serialize + DeserializeOwned> Toasts<T> {
         // Save to cookies
         wasm_cookies::set(
             "sycamore_toasts",
-            &serde_json::to_string(self.toasts.get().as_ref()).unwrap(),
+            &serde_json::to_string(self.toasts.get_untracked().as_ref()).unwrap(),
             &CookieOptions::default(),
         );
     }
@@ -163,6 +164,7 @@ pub fn ToastsView<
         provide_context(cx, toasts.clone());
     }
     let new_toasts = create_memo(cx, move || {
+        log::info!("REFRESH: {:?}", toasts.toasts.get());
         toasts
             .toasts
             .get()
@@ -251,7 +253,6 @@ pub fn DefaultToastView<G: Html>(cx: BoundedScope, toast: Toast) -> View<G> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sycamore::prelude::*;
 
     #[test]
     fn test_toasts() {
