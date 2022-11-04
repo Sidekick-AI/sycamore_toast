@@ -1,7 +1,9 @@
 [package]
 name = "sycamore_toast"
-version = "0.1.0"
+version = "0.1.15"
 edition = "2021"
+description = "A library for providing toast message functionality to Sycamore."
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
