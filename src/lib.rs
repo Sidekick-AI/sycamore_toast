@@ -174,7 +174,7 @@ pub fn ToastsView<
     });
     view! {cx,
         div (class="-translate-y-[300px] z-50") // To include the right class for fading out toasts
-        div (class="fixed top-14 flex flex-col items-center z-50", style="width: 500px; max-width: 100vw") {
+        div (class="fixed top-14 flex flex-col items-center z-50", style="left: 50%; width: 500px; max-width: 100vw") {
             Indexed (
                 iterable=new_toasts,
                 view=move |cx, toast| (view)(cx, toast)
